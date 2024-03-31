@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_api_rest/api/authentication_api.dart';
 //import 'package:flutter/widgets.dart';
 import 'package:flutter_api_rest/utils/responsive.dart';
 import 'package:flutter_api_rest/widgets/input_text.dart';
@@ -17,12 +18,16 @@ class _RegisterFormState extends State<RegisterForm> {
 //lo que hace esta parte es la validacion de datos de los formularios 
 GlobalKey<FormState> _formKey = GlobalKey();
 String _email = '', _password = '', _username = '';
+final AuthenticationAPI _authenticationAPI =AuthenticationAPI();
 
 _submit(){
   final form = _formKey.currentState;
   if (form != null) {
     final isOk = form.validate();
     print("form isOk $isOk");
+    if (isOk) {
+      _authenticationAPI.register(username: _username, email: _email, password: _password);
+    }
   }
 }
   @override
