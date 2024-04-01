@@ -1,7 +1,11 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_api_rest/api/authentication_api.dart';
+import 'package:flutter_api_rest/pages/home_page.dart';
 //import 'package:flutter/widgets.dart';
 import 'package:flutter_api_rest/utils/responsive.dart';
 import 'package:flutter_api_rest/widgets/input_text.dart';
+import 'package:flutter_api_rest/utils/dialogs.dart';
 
 //----------esta parte del código define un widget LoginForm que puede mantener 
 //un estado mutable a través de su clase de estado _LoginFormState, permitiendo 
@@ -16,12 +20,41 @@ class LoginForm extends StatefulWidget {
 class _LoginFormState extends State<LoginForm> {
 //lo que hace esta parte es la validacion de datos de los formularios 
 GlobalKey<FormState> _formKey = GlobalKey();
+String _email = '', _password = '';
+AuthenticationAPI _authenticationAPI = AuthenticationAPI();
 
-_submit(){
+Future<void> _submit() async{
   final form = _formKey.currentState;
   if (form != null) {
     final isOk = form.validate();
     print("form isOk $isOk");
+    if (isOk){
+      ProgressDialog.dissmiss(context);
+     final response = await _authenticationAPI.login(
+      email: _email, 
+      password: _password
+      );
+
+      if (response.data != null) {
+        Navigator.pushNamedAndRemoveUntil(context, HomePage.routeName, (_)=>false);
+      }
+      else {
+        String message = response.error.message;
+        if (response.error.statusCode == -1){
+          message = "bad network";
+        } else if (response.error.statusCode == 403){
+          message ="invalid password";
+        }else if (response.error.statusCode == 404){
+          message ="invalid email";
+        }
+
+        dialogs.alert(
+          context, 
+          title: "error", 
+          description: response.error.message,
+        );
+      }
+    }
   }
 }
   @override

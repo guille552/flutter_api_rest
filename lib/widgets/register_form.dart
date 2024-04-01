@@ -1,8 +1,14 @@
+import 'dart:convert';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_api_rest/api/authentication_api.dart';
+import 'package:flutter_api_rest/helpers/http_response.dart';
+import 'package:flutter_api_rest/pages/home_page.dart';
+import 'package:flutter_api_rest/utils/dialogs.dart';
 //import 'package:flutter/widgets.dart';
 import 'package:flutter_api_rest/utils/responsive.dart';
 import 'package:flutter_api_rest/widgets/input_text.dart';
+import 'package:logger/logger.dart';
 
 //----------esta parte del código define un widget LoginForm que puede mantener 
 //un estado mutable a través de su clase de estado _LoginFormState, permitiendo 
@@ -19,14 +25,41 @@ class _RegisterFormState extends State<RegisterForm> {
 GlobalKey<FormState> _formKey = GlobalKey();
 String _email = '', _password = '', _username = '';
 final AuthenticationAPI _authenticationAPI =AuthenticationAPI();
+Logger _logger = Logger();
 
-_submit(){
+Future<void>_submit() async{
   final form = _formKey.currentState;
   if (form != null) {
     final isOk = form.validate();
     print("form isOk $isOk");
     if (isOk) {
-      _authenticationAPI.register(username: _username, email: _email, password: _password);
+      ProgressDialog.show(context);
+      final HttpResponse response = await _authenticationAPI.register(
+        username: _username, 
+        email: _email, 
+        password: _password
+      );
+      ProgressDialog.dissmiss(context);
+      if(response.data !=null){
+        _logger.i("register ok:::${response.data}");
+        Navigator.pushNamedAndRemoveUntil(context, HomePage.routeName, (_)=>false);
+      } else{
+        _logger.e("register error status code ${response.error.statusCode}");
+        _logger.e("register error message ${response.error.message}");
+        _logger.e("register error data ${response.error.data}");
+        String message = response.error.message;
+        if (response.error.statusCode == 409){
+          message = "bad network";
+        } else if (response.error.statusCode == 409){
+          message ="Duplicated user ${jsonEncode(response.error.data['DuplicatedFields'])}";
+        }
+
+        dialogs.alert(
+          context, 
+          title: "error", 
+          description: response.error.message,
+        );
+      }
     }
   }
 }
@@ -97,6 +130,7 @@ final Responsive responsive = Responsive.of(context);
               InputText(
                 keyboardType: TextInputType.emailAddress,
                 label: "PASSWORD",
+                obscureText: true,
                 fontSize: responsive.dp(responsive.isTablet ? 1.2:1.4),
                 onChanged: (text){
                   _password = text;

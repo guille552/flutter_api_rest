@@ -10,7 +10,8 @@ import 'package:flutter/material.dart';
 class InputText extends StatelessWidget {
   final String label;
   final TextInputType keyboardType;
-  final bool obscureText, borderEnabled;
+  final bool obscureText;
+  final bool borderEnabled;
   final double fontSize;
   final void Function(String) onChanged;
   final String? Function(String? text)? validator;
