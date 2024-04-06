@@ -1,144 +1,128 @@
 import 'dart:convert';
-import 'package:dio/dio.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_api_rest/api/authentication_api.dart';
-import 'package:flutter_api_rest/helpers/http_response.dart';
+import 'package:flutter_api_rest/data/authentication_client.dart';
 import 'package:flutter_api_rest/pages/home_page.dart';
 import 'package:flutter_api_rest/utils/dialogs.dart';
-//import 'package:flutter/widgets.dart';
 import 'package:flutter_api_rest/utils/responsive.dart';
-import 'package:flutter_api_rest/widgets/input_text.dart';
-import 'package:logger/logger.dart';
+import 'package:get_it/get_it.dart';
+import 'input_text.dart';
 
-//----------esta parte del código define un widget LoginForm que puede mantener 
-//un estado mutable a través de su clase de estado _LoginFormState, permitiendo 
-//cambios dinámicos en la interfaz de usuario según la interacción del usuario.
-
+// La clase RegisterForm es un formulario de registro que permite a los usuarios registrarse en la aplicación.
 class RegisterForm extends StatefulWidget {
-  const RegisterForm({super.key});
   @override
-  State<RegisterForm> createState() => _RegisterFormState();
+  _RegisterFormState createState() => _RegisterFormState();
 }
 
 class _RegisterFormState extends State<RegisterForm> {
-//lo que hace esta parte es la validacion de datos de los formularios 
-GlobalKey<FormState> _formKey = GlobalKey();
-String _email = '', _password = '', _username = '';
-final AuthenticationAPI _authenticationAPI =AuthenticationAPI();
-Logger _logger = Logger();
+  // Se obtienen las instancias necesarias para realizar la autenticación y el manejo de sesiones.
+  final _authenticationAPI = GetIt.instance<AuthenticationAPI>();
+  final _authenticationClient = GetIt.instance<AuthenticationClient>();
 
-Future<void>_submit() async{
-  final form = _formKey.currentState;
-  if (form != null) {
-    final isOk = form.validate();
-    print("form isOk $isOk");
+  // Se crea una clave global para el formulario y se inicializan variables para almacenar los datos del usuario.
+  GlobalKey<FormState> _formKey = GlobalKey();
+  String _email = '', _password = '', _username = '';
+
+  // Método para enviar el formulario de registro y validar los datos ingresados por el usuario.
+  Future<void> _submit() async {
+    final isOk = _formKey.currentState!.validate();
+
     if (isOk) {
+      // Muestra un indicador de progreso mientras se envía el formulario.
       ProgressDialog.show(context);
-      final HttpResponse response = await _authenticationAPI.register(
-        username: _username, 
-        email: _email, 
-        password: _password
+      
+      // Envía la solicitud de registro al servidor API.
+      final response = await _authenticationAPI.register(
+        username: _username,
+        email: _email,
+        password: _password,
       );
+
+      // Oculta el indicador de progreso después de obtener la respuesta.
       ProgressDialog.dissmiss(context);
-      if(response.data !=null){
-        _logger.i("register ok:::${response.data}");
-        Navigator.pushNamedAndRemoveUntil(context, HomePage.routeName, (_)=>false);
-      } else{
-        _logger.e("register error status code ${response.error.statusCode}");
-        _logger.e("register error message ${response.error.message}");
-        _logger.e("register error data ${response.error.data}");
+
+      // Si la respuesta es exitosa, guarda la sesión del usuario y lo redirige a la página de inicio.
+      if (response.data != null) {
+        await _authenticationClient.saveSession(response.data);
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          HomePage.routeName,
+          (_) => false,
+        );
+      } else {
+        // Si hay un error en la respuesta, muestra un diálogo de alerta con el mensaje de error.
         String message = response.error.message;
-        if (response.error.statusCode == 409){
-          message = "bad network";
-        } else if (response.error.statusCode == 409){
-          message ="Duplicated user ${jsonEncode(response.error.data['DuplicatedFields'])}";
+        if (response.error.statusCode == -1) {
+          message = "Bad network";
+        } else if (response.error.statusCode == 409) {
+          message = "Duplicated user ${jsonEncode(response.error.data['duplicatedFields'])}";
         }
 
-        dialogs.alert(
-          context, 
-          title: "error", 
-          description: response.error.message,
+        Dialogs.alert(
+          context,
+          title: "ERROR",
+          description: message,
         );
       }
     }
   }
-}
-  @override
-//------------Dentro del método build, se utiliza el widget Positioned 
-//para posicionar el contenido dentro del árbol de widgets de Flutter. 
-//Se especifica que el widget se coloque en la parte inferior de la 
-//pantalla con un margen izquierdo y derecho.-------------------------
-  Widget build(BuildContext context) {
 
-final Responsive responsive = Responsive.of(context);
+  @override
+  Widget build(BuildContext context) {
+    final Responsive responsive = Responsive.of(context);
 
     return Positioned(
       bottom: 30,
       child: Container(
         constraints: BoxConstraints(
-          maxWidth: responsive.isTablet ? 430:360,
+          maxWidth: responsive.isTablet ? 430 : 360,
         ),
         child: Form(
           key: _formKey,
           child: Column(
             children: <Widget>[
-          //crea una columna con dos campos de entrada de texto. 
-          //El primero es para correos electrónicos, 
-          //mientras que el segundo es para contraseñas y 
-          //oculta el texto ingresado.---------------------------
+              // Campo de entrada para el nombre de usuario.
               InputText(
                 keyboardType: TextInputType.emailAddress,
                 label: "USERNAME",
-                fontSize: responsive.dp(responsive.isTablet ? 1.2:1.4),
-                onChanged: (text){
+                fontSize: responsive.dp(responsive.isTablet ? 1.2 : 1.4),
+                onChanged: (text) {
                   _username = text;
                 },
-                  //-----esta parte de aqui es un validador en donde especifica que
-                  //si el texto introducido es nulo o que no tiene el arroba
-                  //marcara el error de invalid email, pero si tiene el arroba
-                  //este validara el campo por lo que pasara al siguiente validador
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Este campo es obligatorio.';
-                  } 
-                  else if (value.trim().length < 5) {
-                    return 'Ingresa al menos 5 caracteres válidos.';
+                validator: (text) {
+                  if (text!.trim().length < 5) {
+                    return "Invalid username";
                   }
-                  return null; 
+                  return null;
                 },
               ),
-              SizedBox(height: responsive.dp(2),),
+              SizedBox(height: responsive.dp(2)),
+              // Campo de entrada para el correo electrónico.
               InputText(
                 keyboardType: TextInputType.emailAddress,
                 label: "EMAIL ADDRESS",
-                fontSize: responsive.dp(responsive.isTablet ? 1.2:1.4),
-                onChanged: (text){
+                fontSize: responsive.dp(responsive.isTablet ? 1.2 : 1.4),
+                onChanged: (text) {
                   _email = text;
-                  },
-                  //-----esta parte de aqui es un validador en donde especifica que
-                  //si el texto introducido es nulo o que no tiene el arroba
-                  //marcara el error de invalid email, pero si tiene el arroba
-                  //este validara el campo por lo que pasara al siguiente validador
-                  validator: (text){
-                    if (text != null && !text.contains("@")) {
-                      return "invalid email";
-                    }
-                    return null;
-                  },
+                },
+                validator: (text){
+                  if (text != null && !text.contains("@")) {
+                    return "invalid email";
+                  }
+                  return null;
+                },
               ),
-              SizedBox(height: responsive.dp(2),),
+              SizedBox(height: responsive.dp(2)),
+              // Campo de entrada para la contraseña.
               InputText(
                 keyboardType: TextInputType.emailAddress,
                 label: "PASSWORD",
                 obscureText: true,
-                fontSize: responsive.dp(responsive.isTablet ? 1.2:1.4),
-                onChanged: (text){
+                fontSize: responsive.dp(responsive.isTablet ? 1.2 : 1.4),
+                onChanged: (text) {
                   _password = text;
                 },
-                  //-----esta parte de aqui es un validador en donde especifica que
-                  //si el texto introducido es nulo o que no tiene el arroba
-                  //marcara el error de invalid email, pero si tiene el arroba
-                  //este validara el campo por lo que pasara al siguiente validador
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Este campo es obligatorio.';
@@ -149,48 +133,46 @@ final Responsive responsive = Responsive.of(context);
                   return null; 
                 },
               ),
-              SizedBox(height: responsive.dp(5),),
-              //esta seccion de codigo lo que hace es que crea el boton de Sign In 
-              //asi como tambien se le da formato de tamaño y estilo -------------
+              SizedBox(height: responsive.dp(5)),
+              // Botón para enviar el formulario de registro.
               SizedBox(
                 width: double.infinity,
-                child: MaterialButton(
+                child: CupertinoButton(
                   padding: EdgeInsets.symmetric(vertical: 15),
                   child: Text(
-                    'Sign Up',
-                    style: TextStyle(color: Color.fromARGB(255, 0, 0, 0),
-                    fontSize: responsive.dp(1.6),
+                    "Sign up",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: responsive.dp(1.5),
                     ),
                   ),
                   onPressed: this._submit,
-                  color: Color.fromARGB(255, 121, 121, 121),
+                  color: const Color.fromARGB(255, 104, 104, 104),
                 ),
               ),
               SizedBox(height: responsive.dp(2)),
-              //en esta seccion se crea la fila para el registro en donde esta
-              //el texto y el boton-------------------------------------------
+              // Enlace para redirigir al usuario a la página de inicio de sesión.
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: <Widget>[
                   Text(
                     "Already have an account?",
                     style: TextStyle(
-                      fontSize: responsive.dp(1.6),
+                      fontSize: responsive.dp(1.5),
                     ),
                   ),
-                  //en esta parte se encuentra ubicdo el boton Sign Up con su respectivo
-                  //estilo--------------------------------------------------------------
-                  MaterialButton(
+                  CupertinoButton(
                     child: Text(
-                      "Sign In", 
-                      style: TextStyle(color: Colors.deepPurpleAccent,
-                        fontSize: responsive.dp(1.6),
+                      "Sign in",
+                      style: TextStyle(
+                        color: Color.fromARGB(255, 76, 0, 138),
+                        fontSize: responsive.dp(1.5),
                       ),
                     ),
                     onPressed: () {
-                     Navigator.pop(context);
+                      Navigator.pop(context);
                     },
-                  ),
+                  )
                 ],
               ),
               SizedBox(height: responsive.dp(10)),

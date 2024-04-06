@@ -12,12 +12,11 @@ class Circle extends StatelessWidget {
 //los parámetros necesarios para crear un círculo (tamaño y colores), asegurando 
 //que sean válidos para su uso en la interfaz de usuario.-----------------------
 
-  Circle ({Key? key, 
+  Circle ({super.key, 
   required this.size, 
   required this.colors
   }) : assert(size !=null && size > 0 ),
-     assert(colors !=null && colors.length >= 2 ),
-    super(key: key);
+     assert(colors !=null && colors.length >= 2 );
 
 //------------esta parte del código crea un círculo visualmente 
 //atractivo con un gradiente de colores dentro de un 

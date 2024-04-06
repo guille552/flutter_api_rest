@@ -1,103 +1,58 @@
-//import 'dart:html';
-import 'dart:io';
-import 'package:dio/dio.dart';
-import 'package:flutter_api_rest/helpers/http_response.dart';
-import 'package:logger/logger.dart';
-//import 'package:meta/meta.dart' show required;
+import 'package:flutter_api_rest/helpers/http.dart' show Http; 
+import 'package:flutter_api_rest/helpers/http_response.dart' show HttpResponse;
+import 'package:flutter_api_rest/models/authentication_response.dart';
 
 class AuthenticationAPI {
-  final Dio _dio = Dio();
-  final Logger _logger = Logger();
+  final Http _http; // Instancia de la clase Http para realizar solicitudes HTTP
 
-//-----------El método register es una función asíncrona (async) que requiere tres 
-//parámetros para funcionar correctamente: username, email y password. 
-//Estos parámetros son marcados como obligatorios usando la palabra clave required, 
-//lo que significa que deben ser proporcionados cuando se llama al método register.
+  AuthenticationAPI(this._http); // Constructor que recibe una instancia de Http
 
-  Future<HttpResponse> register({
+  Future<HttpResponse> register({ // Método para registrarse
     required String username,
     required String email,
     required String password,
-  }) async{
-    try{
-      final response = await _dio.post(
-        'http://10.0.2.2:9000/api/v1/register', 
-        data:{
-          "username":username,
-          "email":email,
-          "password":password,
-        },
-      );
-    //---La respuesta se guarda en una variable y se registra 
-    //utilizando el método i de Logger. Si ocurre algún error 
-    //durante la solicitud, se captura en un bloque catch y 
-    //se registra utilizando el método e de Logger.----------
-    _logger.i(response.data);
-    return HttpResponse.success(response.data);
-    } catch(e){
-       _logger.e(e);
-
-      int? statusCode = -1;
-      String? message = "unknown error";
-      dynamic data;
-      
-      if(e is DioError){
-        message = e.message;
-        if (e.response != null){
-          statusCode = e.response?.statusCode;
-          message = e.response?.statusMessage;
-          data = e.response?.data;
-        }
-      }
-
-      return HttpResponse.fail(
-      statusCode: statusCode!, 
-      message: message!, 
-      data: data,
-      );
-    }
+  }) {
+    return _http.request<AuthenticationResponse>( // Realizar una solicitud HTTP para registrar un usuario
+      '/api/v1/register',
+      method: "POST",
+      data: {
+        "username": username,
+        "email": email,
+        "password": password,
+      },
+      parser: (data) {
+        return AuthenticationResponse.fromJson(data); // Analizar la respuesta y convertirla en un objeto AuthenticationResponse
+      }, queryParameters: {}, formData: {}, headers: {},
+    );
   }
 
-  Future<HttpResponse> login({
+  Future<HttpResponse> login({ // Método para iniciar sesión
     required String email,
     required String password,
-  }) async{
-    try{
-      await Future.delayed(Duration(seconds: 2));
-      final Response response = await _dio.post(
-        'http://10.0.2.2:9000/api/v1/login',
-        data:{
-          "email":email,
-          "password":password,
-        },
-      );
-    //---La respuesta se guarda en una variable y se registra 
-    //utilizando el método i de Logger. Si ocurre algún error 
-    //durante la solicitud, se captura en un bloque catch y 
-    //se registra utilizando el método e de Logger.----------
-    _logger.i(response.data);
-    return HttpResponse.success(response.data);
-    } catch(e){
-       _logger.e(e);
+  }) async {
+    return _http.request<AuthenticationResponse>( // Realizar una solicitud HTTP para iniciar sesión
+      '/api/v1/login',
+      method: "POST",
+      data: {
+        "email": email,
+        "password": password,
+      },
+      parser: (data) {
+        return AuthenticationResponse.fromJson(data); // Analizar la respuesta y convertirla en un objeto AuthenticationResponse
+      }, queryParameters: {}, formData: {}, headers: {},
+    );
+  }
 
-      int? statusCode = -1;
-      String? message = "unknown error";
-      dynamic data;
-      
-      if(e is DioError){
-        message = e.message;
-        if (e.response != null){
-          statusCode = e.response?.statusCode;
-          message = e.response?.statusMessage;
-          data = e.response?.data;
-        }
-      }
-
-      return HttpResponse.fail(
-      statusCode: statusCode!, 
-      message: message!, 
-      data: data,
-      );
-    }
+  Future<HttpResponse> refreshToken(String expiredToken) { // Método para actualizar el token de acceso
+    return _http.request<AuthenticationResponse>( // Realizar una solicitud HTTP para actualizar el token de acceso
+      '/api/v1/refresh-token',
+      method: "POST",
+      headers: {
+        "token": expiredToken,
+      },
+      parser: (data) {
+        return AuthenticationResponse.fromJson(data); // Analizar la respuesta y convertirla en un objeto AuthenticationResponse
+      }, queryParameters: {}, data: {}, formData: {},
+    );
   }
 }

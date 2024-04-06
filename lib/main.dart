@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_api_rest/pages/home_page.dart';
+import 'package:flutter_api_rest/helpers/dependency_injection.dart'; 
+import 'package:flutter_api_rest/pages/home_page.dart'; 
 import 'package:flutter_api_rest/pages/login_page.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter_api_rest/pages/register_page.dart';
-import 'package:flutter_api_rest/widgets/login_form.dart';
+import 'package:flutter/services.dart'; 
+import 'package:flutter_api_rest/pages/register_page.dart'; 
+import 'package:flutter_api_rest/pages/splash_page.dart'; 
 
 void main() {
-  runApp(const MainApp());
+  DependencyInjection.initialize(); // Inicialización de la inyección de dependencias
+  runApp(const MainApp()); // Ejecución de la aplicación principal
 }
 
 class MainApp extends StatelessWidget {
@@ -14,20 +16,17 @@ class MainApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    //------------esta parte sirve para evitar que la aplicacion ajuste
-    //su tamaño a la forma del dispositivo cuando este cambia de posicion
-    //esto sirve para dispositivos moviles tales como telefonos y tablets
-    SystemChrome.setPreferredOrientations([
+    SystemChrome.setPreferredOrientations([ // Configuración de las orientaciones preferidas
       DeviceOrientation.portraitUp,
       DeviceOrientation.portraitDown,
     ]);
 
     return MaterialApp(
-      home: LoginPage(),
-      routes: {
-        RegisterPage.routeName: (_) => RegisterPage(),
-        LoginPage.routeName: (_) => LoginPage(),
-        HomePage.routeName: (_) => HomePage(),
+      home: SplashPage(), // Página de inicio: página de inicio rápido
+      routes: { // Definición de rutas para navegación
+        RegisterPage.routeName: (_) => RegisterPage(), // Ruta para la página de registro
+        LoginPage.routeName: (_) => LoginPage(), // Ruta para la página de inicio de sesión
+        HomePage.routeName: (_) => HomePage(), // Ruta para la página de inicio
       },
     );
   }

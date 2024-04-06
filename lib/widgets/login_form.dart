@@ -1,105 +1,92 @@
-import 'package:dio/dio.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_api_rest/api/authentication_api.dart';
+import 'package:flutter_api_rest/data/authentication_client.dart';
 import 'package:flutter_api_rest/pages/home_page.dart';
-//import 'package:flutter/widgets.dart';
-import 'package:flutter_api_rest/utils/responsive.dart';
-import 'package:flutter_api_rest/widgets/input_text.dart';
 import 'package:flutter_api_rest/utils/dialogs.dart';
-
-//----------esta parte del código define un widget LoginForm que puede mantener 
-//un estado mutable a través de su clase de estado _LoginFormState, permitiendo 
-//cambios dinámicos en la interfaz de usuario según la interacción del usuario.
+import 'package:flutter_api_rest/utils/responsive.dart';
+import 'package:get_it/get_it.dart';
+import 'input_text.dart';
 
 class LoginForm extends StatefulWidget {
-  const LoginForm({super.key});
   @override
-  State<LoginForm> createState() => _LoginFormState();
+  _LoginFormState createState() => _LoginFormState();
 }
 
 class _LoginFormState extends State<LoginForm> {
-//lo que hace esta parte es la validacion de datos de los formularios 
-GlobalKey<FormState> _formKey = GlobalKey();
-String _email = '', _password = '';
-AuthenticationAPI _authenticationAPI = AuthenticationAPI();
+  final _authenticationAPI = GetIt.instance<AuthenticationAPI>(); // Instancia de la API de autenticación
+  final _authenticationClient = GetIt.instance<AuthenticationClient>(); // Cliente de autenticación
 
-Future<void> _submit() async{
-  final form = _formKey.currentState;
-  if (form != null) {
-    final isOk = form.validate();
-    print("form isOk $isOk");
-    if (isOk){
-      ProgressDialog.dissmiss(context);
-     final response = await _authenticationAPI.login(
-      email: _email, 
-      password: _password
+  GlobalKey<FormState> _formKey = GlobalKey(); // Clave global para el formulario
+  String _email = '', _password = ''; // Variables para almacenar el correo electrónico y la contraseña
+
+  Future<void> _submit() async {
+    final isOk = _formKey.currentState!.validate(); // Validar el formulario
+
+    if (isOk) {
+      ProgressDialog.show(context); // Mostrar diálogo de progreso
+
+      final response = await _authenticationAPI.login( // Iniciar sesión con la API de autenticación
+        email: _email,
+        password: _password,
       );
-
-      if (response.data != null) {
-        Navigator.pushNamedAndRemoveUntil(context, HomePage.routeName, (_)=>false);
-      }
-      else {
-        String message = response.error.message;
-        if (response.error.statusCode == -1){
-          message = "bad network";
-        } else if (response.error.statusCode == 403){
-          message ="invalid password";
-        }else if (response.error.statusCode == 404){
-          message ="invalid email";
+      ProgressDialog.dissmiss(context); // Ocultar diálogo de progreso
+      if (response.data != null) { // Si la respuesta es exitosa
+        await _authenticationClient.saveSession(response.data); // Guardar sesión de usuario
+        Navigator.pushNamedAndRemoveUntil( // Navegar a la página de inicio y eliminar las rutas anteriores
+          context,
+          HomePage.routeName,
+          (_) => false,
+        );
+      } else { // Si hay un error en la respuesta
+        String message = response.error.message; // Obtener el mensaje de error
+        if (response.error.statusCode == -1) {
+          message = "Bad network";
+        } else if (response.error.statusCode == 403) {
+          message = "Invalid password";
+        } else if (response.error.statusCode == 404) {
+          message = "User not found";
         }
 
-        dialogs.alert(
-          context, 
-          title: "error", 
-          description: response.error.message,
+        Dialogs.alert( // Mostrar un diálogo de alerta con el mensaje de error
+          context,
+          title: "ERROR",
+          description: message,
         );
       }
     }
   }
-}
+
   @override
-//------------Dentro del método build, se utiliza el widget Positioned 
-//para posicionar el contenido dentro del árbol de widgets de Flutter. 
-//Se especifica que el widget se coloque en la parte inferior de la 
-//pantalla con un margen izquierdo y derecho.-------------------------
   Widget build(BuildContext context) {
+    final Responsive responsive = Responsive.of(context); // Obtener el objeto Responsive para el diseño responsivo
 
-final Responsive responsive = Responsive.of(context);
-
-    return Positioned(
+    return Positioned( // Posicionar el formulario en la parte inferior de la pantalla
       bottom: 30,
       child: Container(
         constraints: BoxConstraints(
-          maxWidth: responsive.isTablet ? 430:360,
+          maxWidth: responsive.isTablet ? 430 : 360, // Establecer el ancho máximo según el tipo de dispositivo
         ),
-        child: Form(
+        child: Form( // Crear un formulario con una clave global
           key: _formKey,
           child: Column(
             children: <Widget>[
-          //crea una columna con dos campos de entrada de texto. 
-          //El primero es para correos electrónicos, 
-          //mientras que el segundo es para contraseñas y 
-          //oculta el texto ingresado.---------------------------
-              InputText(
+              InputText( // Campo de entrada para el correo electrónico
                 keyboardType: TextInputType.emailAddress,
                 label: "EMAIL ADDRESS",
-                fontSize: responsive.dp(responsive.isTablet ? 1.2:1.4),
-                onChanged: (text){
-                  print("email: $text",);
-                  },
-                  //-----esta parte de aqui es un validador en donde especifica que
-                  //si el texto introducido es nulo o que no tiene el arroba
-                  //marcara el error de invalid email, pero si tiene el arroba
-                  //este validara el campo por lo que pasara al siguiente validador
-                  validator: (text){
-                    if (text != null && !text.contains("@")) {
-                      return "invalid email";
-                    }
-                    return null;
-                  },
+                fontSize: responsive.dp(responsive.isTablet ? 1.2 : 1.4),
+                onChanged: (text) {
+                  _email = text; // Actualizar el valor del correo electrónico
+                },
+                validator: (text){ // Validador personalizado para el correo electrónico
+                  if (text != null && !text.contains("@")) {
+                    return "invalid email";
+                  }
+                  return null;
+                },
               ),
-              SizedBox(height: responsive.dp(2),),
-              Container(
+              SizedBox(height: responsive.dp(2)),
+              Container( // Contenedor para la contraseña
                 decoration: BoxDecoration(
                   border: Border(
                     bottom: BorderSide(
@@ -107,95 +94,83 @@ final Responsive responsive = Responsive.of(context);
                     ),
                   ),
                 ),
-                //en esta parte se crea una fila para poder agregar el boton
-                //"forgot password" debido a que es la unica forma en la que 
-                //se puede perfilar dos widgets en una sola linea.----------
                 child: Row(
-                  children: <Widget> [
+                  children: <Widget>[
                     Expanded(
-                      child: InputText(
+                      child: InputText( // Campo de entrada para la contraseña
                         label: "PASSWORD",
                         obscureText: true,
                         borderEnabled: false,
-                        fontSize: responsive.dp(responsive.isTablet ? 1.2:1.4),
-                        onChanged: (text){
-                          print("password: $text");
+                        fontSize: responsive.dp(responsive.isTablet ? 1.2 : 1.4),
+                        onChanged: (text) {
+                          _password = text; // Actualizar el valor de la contraseña
                         },
-                        //aqui se encuentra el validador de la contraseña en donde
-                        //valida que sean caracteres validos y no solo espacios
-                        //vacios en donde si ocurre esto, no lo contara y solo 
-                        //contara los caracteres validos, si no mostrara el mensaje
-                        //"invalid password"
-                        validator: (text){
-                          if (text?.trim().isEmpty ?? true) {
-                            return "invalid password";
+                        validator: (value) { // Validador personalizado para la contraseña
+                          if (value == null || value.isEmpty) {
+                            return 'Este campo es obligatorio.';
+                          } 
+                          else if (value.trim().length < 5) {
+                            return 'Ingresa al menos 5 caracteres válidos.';
                           }
-                        return null;
+                          return null; 
                         },
                       ),
                     ),
-                    //-------en esta parte se crea el boton "forgot password" y se le
-                    //agrega estilos, asi como tambien se le da el formato responsivo
-                    //para que se pueda adaptar a los diferentes tamaños de pantalla-
-                    MaterialButton(
+                    CupertinoButton( // Botón para recuperar contraseña (sin funcionalidad en este código)
                       padding: EdgeInsets.symmetric(vertical: 10),
                       child: Text(
-                        'Forgot Password', 
+                        "Forgot Password",
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          fontSize: responsive.dp(responsive.isTablet ? 1.2:1.5),
+                          fontSize: responsive.dp(responsive.isTablet ? 1.2 : 1.5),
                         ),
                       ),
-                    onPressed: (){},
-                    ),
+                      onPressed: () {},
+                    )
                   ],
                 ),
               ),
-              SizedBox(height: responsive.dp(5),),
-              //esta seccion de codigo lo que hace es que crea el boton de Sign In 
-              //asi como tambien se le da formato de tamaño y estilo -------------
-              SizedBox(
+              SizedBox(height: responsive.dp(5)),
+              SizedBox( // Botón para enviar el formulario
                 width: double.infinity,
-                child: MaterialButton(
+                child: CupertinoButton(
                   padding: EdgeInsets.symmetric(vertical: 15),
+                  onPressed: _submit,
+                  color: const Color.fromARGB(255, 109, 108, 108),
                   child: Text(
-                    'Sign In',
-                    style: TextStyle(color: Color.fromARGB(255, 0, 0, 0),
-                    fontSize: responsive.dp(1.6),
+                    "Sign in",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: responsive.dp(1.5),
                     ),
                   ),
-                  onPressed: _submit,
-                  color: Color.fromARGB(255, 121, 121, 121),
                 ),
               ),
               SizedBox(height: responsive.dp(2)),
-              //en esta seccion se crea la fila para el registro en donde esta
-              //el texto y el boton-------------------------------------------
-              Row(
+              Row( // Texto y botón para registrarse como nuevo usuario
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: <Widget>[
                   Text(
-                    "New to Friend Desi?",
+                    "New to Friendly Desi?",
                     style: TextStyle(
-                      fontSize: responsive.dp(1.6),
+                      fontSize: responsive.dp(1.5),
                     ),
                   ),
-                  //en esta parte se encuentra ubicdo el boton Sign Up con su respectivo
-                  //estilo--------------------------------------------------------------
-                  MaterialButton(
+                  CupertinoButton(
                     child: Text(
-                      "Sign Up", 
-                      style: TextStyle(color: Colors.deepPurpleAccent,
-                        fontSize: responsive.dp(1.6),
+                      "Sign up",
+                      style: TextStyle(
+                        color: Color.fromARGB(255, 76, 0, 138),
+                        fontSize: responsive.dp(1.5),
                       ),
                     ),
                     onPressed: () {
-                      Navigator.pushNamed(context, 'register');
+                      Navigator.pushNamed(context, 'register'); // Navegar a la pantalla de registro
                     },
-                  ),
+                  )
                 ],
               ),
-              SizedBox(height: responsive.dp(10)),
+              SizedBox(height: responsive.dp(10)), // Espacio adicional al final del formulario
             ],
           ),
         ),
